@@ -11,7 +11,16 @@ defmodule Bitcoinminer do
   hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
   bool = String.starts_with?(hashVal, comparator)
   if bool == true do
+    
+    #mapBool=map.has_key?(inputStr)
+    #if mapBool == false do
+    isPresent = Map.has_key?(map,inputStr)
+    if isPresent == false do
+    map=%{inputStr=>hashVal}
     IO.puts "#{inputStr}    #{hashVal}"
+    end
+    
+    
   end
   end
 
