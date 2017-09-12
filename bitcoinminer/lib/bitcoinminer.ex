@@ -1,5 +1,9 @@
 defmodule Bitcoinminer do
 
+  def main(args) do
+    List.first(args) |> String.to_integer() |> mainMethod()
+  end
+
   def getRandomStr do
   len =10
   salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
