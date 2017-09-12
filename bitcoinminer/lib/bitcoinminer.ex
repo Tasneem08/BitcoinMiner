@@ -15,7 +15,7 @@ defmodule Bitcoinminer do
   end
 
   def getKZeroes(k) do
-   "0"
+   String.duplicate("0",k)
   end
   def mainMethod(k) do
   getRandomStr()|>calculateSha(k)
