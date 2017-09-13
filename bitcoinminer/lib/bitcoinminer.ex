@@ -1,5 +1,9 @@
 defmodule Bitcoinminer do
+  use Application
 
+  def start(_type,_args) do
+  Bitcoinminer.Supervisor.start_link
+  end
   def main(args) do
     List.first(args) |> String.to_integer() |> getKZeroes() |> mainMethod()
   end
