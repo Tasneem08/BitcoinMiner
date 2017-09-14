@@ -9,7 +9,6 @@ defmodule Bitcoinminer.Supervisor do
         children = [
             worker(Bitcoinminer.Server, [])
         ]
-
-        supervise(children,strategy: :one_for_one)
+    supervise(children,strategy: :one_for_one)
     end
 end

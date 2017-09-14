@@ -16,7 +16,8 @@ defmodule Bitcoinminer.Mixfile do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Bitcoinminer, []}
+      mod: {Bitcoinminer, []},
+      env: [cookie: 'monster']
     ]
   end
 
