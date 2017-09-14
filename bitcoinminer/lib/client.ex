@@ -6,6 +6,7 @@ defmodule Bitcoinminer.Client do
  #Node.start()
  #Node.connect(node) 
 #end
+
    def start_distributed(appname) do
     unless Node.alive?() do
       local_node_name = generate_name(appname)
@@ -16,6 +17,7 @@ defmodule Bitcoinminer.Client do
   # Node.set_cookie(cookie)
     #server=System.get_env("server")
     #Node.connect(server)
+    Node.connect(String.to_atom("muginu@10.136.27.209"))
   end
 
   defp generate_name(appname) do
@@ -25,4 +27,6 @@ defmodule Bitcoinminer.Client do
       Integer.to_string(16)
     String.to_atom("#{appname}-#{hex}@#{machine}")
   end
+
+
 end
