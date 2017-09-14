@@ -3,16 +3,15 @@ defmodule Bitcoinminer.Server do
 
     #client side
      def start_link do
-         GenServer.start_link(Bitcoinminer.Server, [],name: :chat_room)
+         GenServer.start_link(Bitcoinminer.Server, [])
      end
 
-
-    def get_msgs do
-        GenServer.call(:chat_room,:get_msgs)
+    def get_msgs(pid) do
+        GenServer.call(pid,:get_msgs)
     end
 
-    def add_msg(msg) do
-        GenServer.cast(:chat_room,{:add_msg,msg})
+    def add_msg(pid, msg) do
+        GenServer.cast(pid,{:add_msg,msg})
     end
 
     #server side/callback func
