@@ -8,7 +8,7 @@ defmodule Bitcoinminer.Mixfile do
       elixir: "~> 1.5",
       start_permanent: Mix.env == :prod,
       deps: deps(),
-      escript: [main_module: Bitcoinminer, emu_args: ["-name muginu@10.136.27.209 -setcookie monster"]]
+      escript: [main_module: Bitcoinminer, emu_args: ["-name muginu@10.136.120.193 -setcookie monster"]]
     ]
   end
 
