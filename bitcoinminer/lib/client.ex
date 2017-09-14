@@ -7,17 +7,19 @@ defmodule Bitcoinminer.Client do
  #Node.connect(node) 
 #end
 
-   def start_distributed(appname) do
+   def start_distributed(k) do
     unless Node.alive?() do
-      local_node_name = generate_name(appname)
+      local_node_name = generate_name("mmathkar")
       {:ok, _} = Node.start(local_node_name)
     end
     #cookie = Application.get_env(:APP_NAME, :cookie)
    Node.set_cookie(String.to_atom("monster"))
   # Node.set_cookie(cookie)
     #server=System.get_env("server")
-    #Node.connect(server)
-    Node.connect(String.to_atom("muginu@10.136.27.209"))
+    result = Node.connect(String.to_atom("muginu@10.192.55.89"))
+    if result == true do
+      mainMethod(String.duplicate("0", k))
+    end
   end
 
   defp generate_name(appname) do
@@ -28,5 +30,31 @@ defmodule Bitcoinminer.Client do
     String.to_atom("#{appname}-#{hex}@#{machine}")
   end
 
+  def main(args) do
+    List.first(args) |> String.to_integer() |> getKZeroes() |> mainMethod()
+  end
+
+  defp getKZeroes(k) do
+   String.duplicate("0", k)
+  end
+
+  defp mainMethod(k) do
+  getRandomStr()|>validateHash(k)
+  mainMethod(k)
+  end
+
+  defp getRandomStr do
+  len =40
+  salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
+  "mmathkar" <> salt
+  end
+
+  defp validateHash(inputStr,comparator) do
+  hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
+  bool = String.starts_with?(hashVal, comparator)
+  if bool == true do
+    IO.puts "#{inputStr}    #{hashVal}"
+  end
+  end
 
 end
