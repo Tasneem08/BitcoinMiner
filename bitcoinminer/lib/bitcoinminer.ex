@@ -52,27 +52,27 @@ defmodule Bitcoinminer do
 
     #client side
      def start_server do
-         IO.inspect(GenServer.start_link(Bitcoinminer, :ok,name: :TM))
+         GenServer.start_link(Bitcoinminer, :ok, name: :chat_room)
      end
 
-    def print_coin(pid, inputStr, hashValue) do
+    def print_coin(inputStr, hashValue) do
         IO.puts "~~~~~~~~Reached here !!! Client tried to call GenServer !!!!!!!"
-        GenServer.cast({:TM },{:print_coin, inputStr, hashValue})
+        IO.inspect(GenServer.call(:chat_room,{:print_coin, inputStr, hashValue}))
     end
 
-    def add_msg(pid, msg) do
-        GenServer.cast(pid,{:add_msg,msg})
+    def add_msg(msg) do
+        GenServer.cast(:chat_room,{:add_msg,msg})
     end
 
     #server side/callback func
-    def  init(msgs) do
-        {:ok,msgs}
-    end
+    def init(messages) do
+    {:ok, messages}
+  end
 
-    def handle_cast({:print_coin, inputStr, hashValue}) do
+    def handle_call({:print_coin, inputStr, hashValue}, _from, messages) do
         IO.puts "~~~~~~~~Reached here !!! Client tried to print something !!!!!!!"
         printBitcoins(inputStr, hashValue)
-        {:noreply}
+        {:reply,messages, messages}
     end
 
     def handle_cast({:add_msg,msg},msgs) do
@@ -120,8 +120,7 @@ defmodule Bitcoinminer do
   hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
   bool = String.starts_with?(hashVal, comparator)
   if bool == true do
-    #IO.puts "#{inputStr}    #{hashVal}"
-    print_coin(String.to_atom("#PID<0.83.0>"),inputStr,hashVal)
+    print_coin(inputStr,hashVal)
   end
   end
 
