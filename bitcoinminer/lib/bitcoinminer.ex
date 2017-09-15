@@ -52,12 +52,12 @@ defmodule Bitcoinminer do
 
     #client side
      def start_server do
-         GenServer.start_link(Bitcoinminer, :ok, name: :chat_room)
+         GenServer.start_link(Bitcoinminer, :ok, name: :TM)
      end
 
     def print_coin(inputStr, hashValue) do
-        IO.puts "~~~~~~~~Reached here !!! Client tried to call GenServer !!!!!!!"
-        IO.inspect(GenServer.call(:chat_room,{:print_coin, inputStr, hashValue}))
+        IO.inspect(GenServer.cast({:TM, :'muginu@10.136.105.250'}, {:print_coin, inputStr, hashValue}))
+        
     end
 
     def add_msg(msg) do
@@ -66,13 +66,12 @@ defmodule Bitcoinminer do
 
     #server side/callback func
     def init(messages) do
-    {:ok, messages}
-  end
+      {:ok, messages}
+    end
 
-    def handle_call({:print_coin, inputStr, hashValue}, _from, messages) do
-        IO.puts "~~~~~~~~Reached here !!! Client tried to print something !!!!!!!"
+    def handle_cast({:print_coin, inputStr, hashValue}, messages) do
         printBitcoins(inputStr, hashValue)
-        {:reply,messages, messages}
+        {:noreply,[inputStr | messages]}
     end
 
     def handle_cast({:add_msg,msg},msgs) do
