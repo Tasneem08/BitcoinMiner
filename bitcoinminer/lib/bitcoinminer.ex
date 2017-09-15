@@ -1,12 +1,12 @@
 defmodule Bitcoinminer do
-  use Application
+  use Application, GenServer
 
   def start(_type,_args) do
   #unless Process.whereis(:store) do
   #  {:ok, pid} = Bitcoinminer.MapOps.start_link()
   #  Process.register(pid, :store)
   #end
-    Bitcoinminer.Supervisor.start_link
+    start_server()
   end
 
   def main(args) do
@@ -47,4 +47,82 @@ defmodule Bitcoinminer do
     end
     end
 
-end
+
+### Server 
+
+    #client side
+     def start_server do
+         IO.inspect(GenServer.start_link(Bitcoinminer, :ok,name: :TM))
+     end
+
+    def print_coin(pid, inputStr, hashValue) do
+        IO.puts "~~~~~~~~Reached here !!! Client tried to call GenServer !!!!!!!"
+        GenServer.cast({:TM },{:print_coin, inputStr, hashValue})
+    end
+
+    def add_msg(pid, msg) do
+        GenServer.cast(pid,{:add_msg,msg})
+    end
+
+    #server side/callback func
+    def  init(msgs) do
+        {:ok,msgs}
+    end
+
+    def handle_cast({:print_coin, inputStr, hashValue}) do
+        IO.puts "~~~~~~~~Reached here !!! Client tried to print something !!!!!!!"
+        printBitcoins(inputStr, hashValue)
+        {:noreply}
+    end
+
+    def handle_cast({:add_msg,msg},msgs) do
+        {:noreply,[msg|msgs]}
+    end
+
+
+### Client
+
+   def start_distributed(k) do
+    unless Node.alive?() do
+      local_node_name = generate_name("mmathkar")
+      {:ok, _} = Node.start(local_node_name)
+    end
+    #cookie = Application.get_env(:APP_NAME, :cookie)
+   Node.set_cookie(String.to_atom("monster"))
+  # Node.set_cookie(cookie)
+    #server=System.get_env("server")
+    result = Node.connect(String.to_atom("muginu@10.136.105.250"))
+    if result == true do
+      clientMainMethod(String.duplicate("0", k))
+    end
+  end
+
+  defp generate_name(appname) do
+    machine = Application.get_env(appname, :machine, "localhost") #Returns the value for :machine in app’s environment
+    hex = :erlang.monotonic_time() |>
+      :erlang.phash2(256) |>
+      Integer.to_string(16)
+    String.to_atom("#{appname}-#{hex}@#{machine}")
+  end
+
+  defp clientMainMethod(k) do
+  getRandomStrClient()|>validateHashClient(k)
+  clientMainMethod(k)
+  end
+
+  defp getRandomStrClient do
+  len =5
+  salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
+  "mmathkar" <> salt
+  end
+
+  defp validateHashClient(inputStr,comparator) do
+  hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
+  bool = String.starts_with?(hashVal, comparator)
+  if bool == true do
+    #IO.puts "#{inputStr}    #{hashVal}"
+    print_coin(String.to_atom("#PID<0.83.0>"),inputStr,hashVal)
+  end
+  end
+
+  end

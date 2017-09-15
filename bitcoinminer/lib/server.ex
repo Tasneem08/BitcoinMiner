@@ -1,13 +1,13 @@
-defmodule Bitcoinminer.Server do
+defmodule Bitcoinminer.Server2 do
     use GenServer
 
     #client side
      def start_link do
-         GenServer.start_link(Bitcoinminer.Server, :ok, [])
+         IO.inspect(GenServer.start_link(Bitcoinminer.Server, :ok, []))
      end
 
     def print_coin(pid, inputStr, hashValue) do
-        GenServer.call(pid,{:print_coin, inputStr, hashValue})
+        GenServer.cast(pid,{:print_coin, inputStr, hashValue})
     end
 
     def add_msg(pid, msg) do
@@ -19,7 +19,7 @@ defmodule Bitcoinminer.Server do
         {:ok,msgs}
     end
 
-    def handle_call({:print_coin, inputStr, hashValue}) do
+    def handle_cast({:print_coin, inputStr, hashValue}) do
         {:noreply, fn -> Bitcoinminer.printBitcoins(inputStr, hashValue) end}
     end
 

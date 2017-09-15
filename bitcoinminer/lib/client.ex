@@ -1,4 +1,4 @@
-defmodule Bitcoinminer.Client do
+defmodule Bitcoinminer.Client2 do
 #def connectServer(ipaddress) do
  #set iex --name
  #node.connect 
@@ -44,7 +44,7 @@ defmodule Bitcoinminer.Client do
   end
 
   defp getRandomStr do
-  len =40
+  len =5
   salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
   "mmathkar" <> salt
   end
@@ -54,6 +54,7 @@ defmodule Bitcoinminer.Client do
   bool = String.starts_with?(hashVal, comparator)
   if bool == true do
     IO.puts "#{inputStr}    #{hashVal}"
+    
   end
   end
 
