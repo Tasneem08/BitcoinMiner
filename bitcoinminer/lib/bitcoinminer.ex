@@ -1,19 +1,15 @@
 defmodule Bitcoinminer do
   use GenServer
-  use Application
-
-  def start(_type, _args) do
-  #unless Process.whereis(:store) do
-  #  {:ok, pid} = Bitcoinminer.MapOps.start_link()
-  #  Process.register(pid, :store)
-  #end
-     start_server()
-     
-  end
 
   def main(args) do
    try do
-      k = List.first(args) |> String.to_integer() |> getKZeroes() |> mainMethod()
+      k = List.first(args) |> String.to_integer()
+      start_link()
+      Registry.start_link(:unique, Registry.BitcoinSpecs)
+      Registry.register(Registry.BitcoinSpecs, "kzeroes", String.to_atom(Integer.to_string(k)))
+      #IO.inspect(Registry.keys(Registry.BitcoinSpecs, self()))
+      IO.inspect(Registry.lookup(Registry.BitcoinSpecs, "kzeroes"))
+      k |> getKZeroes() |> mainMethod()
    rescue
       ArgumentError -> start_distributed(List.first(args))
    end
@@ -32,10 +28,6 @@ defmodule Bitcoinminer do
     (ip)
   end
   
-  # def set_K(k) do
-  # k=k1
-  # end
-
   defp getKZeroes(k) do
    String.duplicate("0", k)
   end
@@ -64,32 +56,30 @@ defmodule Bitcoinminer do
     isPresent = Map.has_key?(map,inputStr)
     if isPresent == true do
     IO.puts "#{inputStr}    #{hashVal}"
-   # isPresent = send :store, {:get_key, inputStr, self()}
-   # IO.inspect "#{isPresent}"
-    #send :store, {:put, inputStr, hashVal}
     end
     end
 
 
 ### Server 
 
-    #client side
-     def start_server() do
-        # unless Node.alive?() do
-        # local_node_name = String.to_atom("muginu@"<>findIP())
-        # {:ok, _} = Node.start(local_node_name)
-        # end
-        # Node.set_cookie(String.to_atom("monster"))
-        GenServer.start_link(Bitcoinminer,:ok, name: :TM)
+     def start_link() do
+       IO.puts "In START LINK"
+        unless Node.alive?() do
+        local_node_name = String.to_atom("muginu@"<>findIP())
+        {:ok, _} = Node.start(local_node_name)
+        end
+        Node.set_cookie(String.to_atom("monster"))
+        GenServer.start_link(Bitcoinminer,[], name: :TM)
      end
 
     def print_coin(inputStr, hashValue) do
-        IO.inspect(GenServer.cast({:TM, :'muginu@10.136.196.248'}, {:print_coin, inputStr, hashValue}))
-        
+        [serverIP] = Registry.keys(Registry.ServerInfo, self())
+        IO.inspect(GenServer.cast({:TM, String.to_atom("muginu@"<>serverIP)}, {:print_coin, inputStr, hashValue}))
     end
 
     def get_K do
-        IO.inspect(GenServer.call(:TM, :get_K))
+        [serverIP] = Registry.keys(Registry.ServerInfo, self())
+        IO.inspect(GenServer.call({:TM, String.to_atom("muginu@"<>serverIP)}, :get_K))
         
     end
 
@@ -99,13 +89,12 @@ defmodule Bitcoinminer do
 
     #server side/callback func
     def init(messages) do
-    IO.inspect(messages)
-    IO.puts("init")
       {:ok, messages}
     end
 
-    def handle_call({:get_K}, _from, k) do
-    {:reply,k, k}
+    def handle_call(:get_K, _from, messages) do
+      [{_, k}] = Registry.lookup(Registry.BitcoinSpecs, "kzeroes")
+      {:reply, String.to_integer(Atom.to_string(k)), messages}
   end
 
     def handle_cast({:print_coin, inputStr, hashValue}, messages) do
@@ -121,17 +110,22 @@ defmodule Bitcoinminer do
 ### Client
 
    def start_distributed(ipAddr) do
+
+   # store the IP
+   Registry.start_link(:unique, Registry.ServerInfo)
+   Registry.register(Registry.ServerInfo, ipAddr, :serverIP)
+
     unless Node.alive?() do
       local_node_name = generate_name("mmathkar")
       {:ok, _} = Node.start(local_node_name)
     end
-    #cookie = Application.get_env(:APP_NAME, :cookie)
+   
    Node.set_cookie(String.to_atom("monster"))
-  # Node.set_cookie(cookie)
-    #server=System.get_env("server")
     result = Node.connect(String.to_atom("muginu@"<>ipAddr))
     if result == true do
-      clientMainMethod(String.duplicate("0", 4))
+      k = get_K()
+      IO.puts "RECEIVED K AS #{k}"
+      clientMainMethod(String.duplicate("0", k))
     end
   end
 
