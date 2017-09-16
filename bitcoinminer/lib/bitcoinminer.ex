@@ -6,12 +6,20 @@ defmodule Bitcoinminer do
   #  {:ok, pid} = Bitcoinminer.MapOps.start_link()
   #  Process.register(pid, :store)
   #end
-    start_server()
+     start_server()
   end
 
   def main(args) do
-    List.first(args) |> String.to_integer() |> getKZeroes() |> mainMethod()
+    #k1=List.first(args) |> String.to_integer() |> getKZeroes() |> mainMethod()
+    k1=List.first(args) |> String.to_integer() 
+    #set_K(k1)
+   # k1|>start_server()
+    getKZeroes(k1) |> mainMethod()
   end
+  
+  # def set_K(k) do
+  # k=k1
+  # end
 
   defp getKZeroes(k) do
    String.duplicate("0", k)
@@ -51,12 +59,18 @@ defmodule Bitcoinminer do
 ### Server 
 
     #client side
-     def start_server do
-         GenServer.start_link(Bitcoinminer, :ok, name: :TM)
+     def start_server() do
+        # k=set_K
+         GenServer.start_link(Bitcoinminer,:ok, name: :TM)#k is the state
      end
 
     def print_coin(inputStr, hashValue) do
-        IO.inspect(GenServer.cast({:TM, :'muginu@10.136.105.250'}, {:print_coin, inputStr, hashValue}))
+        IO.inspect(GenServer.cast({:TM, :'muginu@10.136.196.248'}, {:print_coin, inputStr, hashValue}))
+        
+    end
+
+    def get_K do
+        IO.inspect(GenServer.call(:TM, :get_K))
         
     end
 
@@ -66,8 +80,14 @@ defmodule Bitcoinminer do
 
     #server side/callback func
     def init(messages) do
+    IO.inspect(messages)
+    IO.puts("init")
       {:ok, messages}
     end
+
+    def handle_call({:get_K}, _from, k) do
+    {:reply,k, k}
+  end
 
     def handle_cast({:print_coin, inputStr, hashValue}, messages) do
         printBitcoins(inputStr, hashValue)
@@ -90,8 +110,9 @@ defmodule Bitcoinminer do
    Node.set_cookie(String.to_atom("monster"))
   # Node.set_cookie(cookie)
     #server=System.get_env("server")
-    result = Node.connect(String.to_atom("muginu@10.136.105.250"))
+    result = Node.connect(String.to_atom("muginu@10.136.196.248"))
     if result == true do
+     # k = get_K()
       clientMainMethod(String.duplicate("0", k))
     end
   end
