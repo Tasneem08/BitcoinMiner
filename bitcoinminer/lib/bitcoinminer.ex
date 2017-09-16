@@ -1,5 +1,6 @@
 defmodule Bitcoinminer do
   use GenServer
+  use Application
 
   def start(_type, _args) do
   #unless Process.whereis(:store) do
@@ -26,9 +27,9 @@ defmodule Bitcoinminer do
      :unix -> {:ok, [addr: ip]} = :inet.ifget('en0', [:addr])
      ip
      :win32 -> {:ok, [ip, _]} = :inet.getiflist
-     ip
+     to_string(ip)
     end
-    IO.inspect(ip)
+    (ip)
   end
   
   # def set_K(k) do
@@ -128,7 +129,7 @@ defmodule Bitcoinminer do
    Node.set_cookie(String.to_atom("monster"))
   # Node.set_cookie(cookie)
     #server=System.get_env("server")
-    result = Node.connect(String.to_atom("muginu@10.136.95.124"))
+    result = Node.connect(String.to_atom("muginu@"<>ipAddr))
     if result == true do
       clientMainMethod(String.duplicate("0", 4))
     end
