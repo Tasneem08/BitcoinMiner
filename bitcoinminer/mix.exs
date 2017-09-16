@@ -8,14 +8,14 @@ defmodule Bitcoinminer.Mixfile do
       elixir: "~> 1.5",
       start_permanent: Mix.env == :prod,
       deps: deps(),
-      escript: [main_module: Bitcoinminer, emu_args: ["-name muginu@10.136.196.248 -setcookie monster"]]
+      escript: [main_module: Bitcoinminer]
     ]
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger],
+      extra_applications: [],
       mod: {Bitcoinminer, []},
       env: [cookie: 'monster']
     ]

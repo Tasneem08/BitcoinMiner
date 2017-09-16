@@ -1,20 +1,34 @@
 defmodule Bitcoinminer do
-  use Application, GenServer
+  use GenServer
 
-  def start(_type,_args) do
+  def start(_type, _args) do
   #unless Process.whereis(:store) do
   #  {:ok, pid} = Bitcoinminer.MapOps.start_link()
   #  Process.register(pid, :store)
   #end
      start_server()
+     
   end
 
   def main(args) do
-    #k1=List.first(args) |> String.to_integer() |> getKZeroes() |> mainMethod()
-    k1=List.first(args) |> String.to_integer() 
-    #set_K(k1)
-   # k1|>start_server()
-    getKZeroes(k1) |> mainMethod()
+   try do
+      k = List.first(args) |> String.to_integer() |> getKZeroes() |> mainMethod()
+   rescue
+      ArgumentError -> start_distributed(List.first(args))
+   end
+  end
+
+
+  def findIP do
+    {ops_sys, _ } = :os.type
+    ip = 
+    case ops_sys do
+     :unix -> {:ok, [addr: ip]} = :inet.ifget('en0', [:addr])
+     ip
+     :win32 -> {:ok, [ip, _]} = :inet.getiflist
+     ip
+    end
+    IO.inspect(ip)
   end
   
   # def set_K(k) do
@@ -60,8 +74,12 @@ defmodule Bitcoinminer do
 
     #client side
      def start_server() do
-        # k=set_K
-         GenServer.start_link(Bitcoinminer,:ok, name: :TM)#k is the state
+        unless Node.alive?() do
+        local_node_name = String.to_atom("muginu@"<>findIP())
+        {:ok, _} = Node.start(local_node_name)
+        end
+        Node.set_cookie(String.to_atom("monster"))
+        GenServer.start_link(Bitcoinminer,:ok, name: :TM)
      end
 
     def print_coin(inputStr, hashValue) do
@@ -101,7 +119,7 @@ defmodule Bitcoinminer do
 
 ### Client
 
-   def start_distributed(k) do
+   def start_distributed(ipAddr) do
     unless Node.alive?() do
       local_node_name = generate_name("mmathkar")
       {:ok, _} = Node.start(local_node_name)
@@ -110,10 +128,9 @@ defmodule Bitcoinminer do
    Node.set_cookie(String.to_atom("monster"))
   # Node.set_cookie(cookie)
     #server=System.get_env("server")
-    result = Node.connect(String.to_atom("muginu@10.136.196.248"))
+    result = Node.connect(String.to_atom("muginu@10.136.95.124"))
     if result == true do
-     # k = get_K()
-      clientMainMethod(String.duplicate("0", k))
+      clientMainMethod(String.duplicate("0", 4))
     end
   end
 
