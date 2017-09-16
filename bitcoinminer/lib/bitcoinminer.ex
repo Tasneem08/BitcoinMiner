@@ -25,7 +25,7 @@ defmodule Bitcoinminer do
     ip = 
     case ops_sys do
      :unix -> {:ok, [addr: ip]} = :inet.ifget('en0', [:addr])
-     ip
+     to_string(:inet.ntoa(ip))
      :win32 -> {:ok, [ip, _]} = :inet.getiflist
      to_string(ip)
     end
@@ -75,11 +75,11 @@ defmodule Bitcoinminer do
 
     #client side
      def start_server() do
-        unless Node.alive?() do
-        local_node_name = String.to_atom("muginu@"<>findIP())
-        {:ok, _} = Node.start(local_node_name)
-        end
-        Node.set_cookie(String.to_atom("monster"))
+        # unless Node.alive?() do
+        # local_node_name = String.to_atom("muginu@"<>findIP())
+        # {:ok, _} = Node.start(local_node_name)
+        # end
+        # Node.set_cookie(String.to_atom("monster"))
         GenServer.start_link(Bitcoinminer,:ok, name: :TM)
      end
 
