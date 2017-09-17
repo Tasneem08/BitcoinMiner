@@ -5,8 +5,8 @@ defmodule Bitcoinminer do
   def main(args) do
    try do
       k = List.first(args) |> String.to_integer()
-      start_link()
       Registry.start_link(:unique, Registry.BitcoinSpecs)
+      start_link()
       Registry.register(Registry.BitcoinSpecs, "kzeroes", String.to_atom(Integer.to_string(k)))
       IO.inspect(Registry.lookup(Registry.BitcoinSpecs, "kzeroes"))
       k |> getKZeroes() |> mainMethod()
@@ -38,24 +38,17 @@ defmodule Bitcoinminer do
     # Number of nodes connected (not counting self ) =   tuple_size(List.to_tuple(Node.list()))
     max_size = 100
     total_workers = tuple_size(List.to_tuple(Node.list())) + 1
-    
-    # for(i=1;i<total_workers; i++)
-    # {
-    #     worker_min = worker_max + 1
-    #     worker_max = (max_size/total_workers) * i
-    #     send to worker pid -> {worker_min, worker_max}
-    # }
     workUnit = (max_size/total_workers)
     loop(List.to_tuple(Node.list()), total_workers - 2 , 0, workUnit)
     end
-
 
     def loop(tuple, i, worker_max, workUnit) do
     if i>= 0 do
         worker_min = worker_max + 1
         worker_max = worker_max + workUnit
-
         IO.puts("For #{elem(tuple,i)}  Min Size = #{worker_min}     Max Size = #{worker_max}")
+        #send elem(tuple,i), {[],[] }
+        #sendToClient(elem(tuple,i), worker_min, worker_max)
         loop(tuple, i-1, worker_max, workUnit)
     end
     end
@@ -82,18 +75,14 @@ defmodule Bitcoinminer do
   hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
   bool = String.starts_with?(hashVal, comparator)
   if bool == true do
-    printBitcoins(inputStr, hashVal)
+    GenServer.cast({:TM, String.to_atom("muginu@"<>findIP())}, {:print_coin, inputStr, hashVal})
   end
   end
 
   # Prints found Bitcoins and their hash to the console.
   def printBitcoins(inputStr, hashVal) do
-    map=%{inputStr=>hashVal}
-    isPresent = Map.has_key?(map,inputStr)
-    if isPresent == true do
     IO.puts "#{inputStr}    #{hashVal}"
-    end
-    end
+  end
 
 
 ### Server 
@@ -101,6 +90,7 @@ defmodule Bitcoinminer do
      def start_link() do
        IO.puts "In START LINK"
         unless Node.alive?() do
+        #Registry.register(Registry.BitcoinSpecs, "kzeroes", String.to_atom(Integer.to_string(k)))
         local_node_name = String.to_atom("muginu@"<>findIP())
         {:ok, _} = Node.start(local_node_name)
         end
@@ -110,41 +100,36 @@ defmodule Bitcoinminer do
 
     def print_coin(inputStr, hashValue) do
         [serverIP] = Registry.keys(Registry.ServerInfo, self())
-        IO.inspect(GenServer.cast({:TM, String.to_atom("muginu@"<>serverIP)}, {:print_coin, inputStr, hashValue}))
+        GenServer.cast({:TM, String.to_atom("muginu@"<>serverIP)}, {:print_coin, inputStr, hashValue})
     end
 
     def get_K do
-        
         [serverIP] = Registry.keys(Registry.ServerInfo, self())
-        IO.inspect(GenServer.call({:TM, String.to_atom("muginu@"<>serverIP)}, :get_K))
-        
-    end
-
-    def add_msg(msg) do
-        GenServer.cast(:chat_room,{:add_msg,msg})
+        GenServer.call({:TM, String.to_atom("muginu@"<>serverIP)}, :get_K)
     end
 
     #server side/callback func
-    def init(messages) do
-      {:ok, messages}
+    def init(_) do
+      {:ok, Map.new}
     end
 
-    def handle_call(:get_K, _from, messages) do
+    def handle_call(:get_K, _from, map) do
       # CALL LOAD BALANCER HERE
       loadBalancer()
       [{_, k}] = Registry.lookup(Registry.BitcoinSpecs, "kzeroes")
-      {:reply, String.to_integer(Atom.to_string(k)), messages}
+      {:reply, String.to_integer(Atom.to_string(k)), map}
   end
 
-    def handle_cast({:print_coin, inputStr, hashValue}, messages) do
+    def handle_cast({:print_coin, inputStr, hashValue}, map) do
+      case Map.get(map, inputStr) do
+      nil ->
         printBitcoins(inputStr, hashValue)
-        {:noreply,[inputStr | messages]}
+        {:noreply, Map.put(map, inputStr, hashValue)}
+      _ ->
+        IO.puts("FOUND CLASH.")
+        {:noreply, map}
     end
-
-    def handle_cast({:add_msg,msg},msgs) do
-        {:noreply,[msg|msgs]}
     end
-
 
 ### Client
 
@@ -155,7 +140,7 @@ defmodule Bitcoinminer do
    Registry.register(Registry.ServerInfo, ipAddr, :serverIP)
 
     unless Node.alive?() do
-      local_node_name = String.to_atom("mmathkar"<>(:erlang.monotonic_time() |> :erlang.phash2(256) |> Integer.to_string(16)))
+      local_node_name = String.to_atom("mmathkar"<>(:erlang.monotonic_time() |> :erlang.phash2(256) |> Integer.to_string(16))<>"@"<>findIP())
       {:ok, _} = Node.start(local_node_name)
     end
    
@@ -163,7 +148,6 @@ defmodule Bitcoinminer do
     result = Node.connect(String.to_atom("muginu@"<>ipAddr))
     if result == true do
       k = get_K()
-      IO.puts "RECEIVED K AS #{k}"
       clientMainMethod(String.duplicate("0", k))
     end
   end
@@ -187,13 +171,13 @@ defmodule Bitcoinminer do
   end
   end
 
-  end
-
 
   # defp generate_name(appname) do
   #   machine = Application.get_env(appname, :machine, "localhost") #Returns the value for :machine in app’s environment
   #   hex = :erlang.monotonic_time() |>
   #     :erlang.phash2(256) |>
   #     Integer.to_string(16)
-  #   String.to_atom("#{appname}-#{hex}@#{machine}")
+  #   String.to_atom("#{appname}#{hex}@#{machine}")
   # end
+
+  end
