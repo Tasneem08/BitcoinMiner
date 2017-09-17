@@ -1,13 +1,13 @@
 defmodule Bitcoinminer do
   use GenServer
 
+  # Entry point to the code. 
   def main(args) do
    try do
       k = List.first(args) |> String.to_integer()
       start_link()
       Registry.start_link(:unique, Registry.BitcoinSpecs)
       Registry.register(Registry.BitcoinSpecs, "kzeroes", String.to_atom(Integer.to_string(k)))
-      #IO.inspect(Registry.keys(Registry.BitcoinSpecs, self()))
       IO.inspect(Registry.lookup(Registry.BitcoinSpecs, "kzeroes"))
       k |> getKZeroes() |> mainMethod()
    rescue
@@ -15,7 +15,7 @@ defmodule Bitcoinminer do
    end
   end
 
-
+  # Returns the IP address of the machine the code is being run on.
   def findIP do
     {ops_sys, _ } = :os.type
     ip = 
@@ -28,6 +28,7 @@ defmodule Bitcoinminer do
     (ip)
   end
   
+  # Returns a string with k zeroes
   defp getKZeroes(k) do
    String.duplicate("0", k)
   end
@@ -37,12 +38,14 @@ defmodule Bitcoinminer do
   mainMethod(k)
   end
 
+  
   defp getRandomStr do
   len =40
   salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
   "mmathkar" <> salt
   end
 
+  
   defp validateHash(inputStr,comparator) do
   hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
   bool = String.starts_with?(hashVal, comparator)
@@ -51,6 +54,7 @@ defmodule Bitcoinminer do
   end
   end
 
+  # Prints found Bitcoins and their hash to the console.
   def printBitcoins(inputStr, hashVal) do
     map=%{inputStr=>hashVal}
     isPresent = Map.has_key?(map,inputStr)
@@ -116,7 +120,7 @@ defmodule Bitcoinminer do
    Registry.register(Registry.ServerInfo, ipAddr, :serverIP)
 
     unless Node.alive?() do
-      local_node_name = generate_name("mmathkar")
+      local_node_name = String.to_atom("mmathkar"<>(:crypto.strong_rand_bytes(5) |> Base.encode64 |> binary_part(0, 5)))
       {:ok, _} = Node.start(local_node_name)
     end
    
@@ -129,13 +133,13 @@ defmodule Bitcoinminer do
     end
   end
 
-  defp generate_name(appname) do
-    machine = Application.get_env(appname, :machine, "localhost") #Returns the value for :machine in app’s environment
-    hex = :erlang.monotonic_time() |>
-      :erlang.phash2(256) |>
-      Integer.to_string(16)
-    String.to_atom("#{appname}-#{hex}@#{machine}")
-  end
+  # defp generate_name(appname) do
+  #   machine = Application.get_env(appname, :machine, "localhost") #Returns the value for :machine in app’s environment
+  #   hex = :erlang.monotonic_time() |>
+  #     :erlang.phash2(256) |>
+  #     Integer.to_string(16)
+  #   String.to_atom("#{appname}-#{hex}@#{machine}")
+  # end
 
   defp clientMainMethod(k) do
   getRandomStrClient()|>validateHashClient(k)
