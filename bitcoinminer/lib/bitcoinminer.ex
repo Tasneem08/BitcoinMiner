@@ -28,6 +28,17 @@ defmodule Bitcoinminer do
     (ip)
   end
   
+  # Load Balancer
+    # called from get_k. matlab new worker joined and you gotta re-distribute the load
+    # Try to equally divide the string size.
+    # Keep a registry for load assigned ?
+    # Try to maintain a map?
+    # Store a range of size assigned to each worker.
+  def loadBalancer do
+
+  
+ 
+
   # Returns a string with k zeroes
   defp getKZeroes(k) do
    String.duplicate("0", k)
@@ -82,6 +93,7 @@ defmodule Bitcoinminer do
     end
 
     def get_K do
+        # CALL LOAD BALANCER HERE
         [serverIP] = Registry.keys(Registry.ServerInfo, self())
         IO.inspect(GenServer.call({:TM, String.to_atom("muginu@"<>serverIP)}, :get_K))
         
@@ -124,7 +136,7 @@ defmodule Bitcoinminer do
       {:ok, _} = Node.start(local_node_name)
     end
    
-   Node.set_cookie(String.to_atom("monster"))
+    Node.set_cookie(String.to_atom("monster"))
     result = Node.connect(String.to_atom("muginu@"<>ipAddr))
     if result == true do
       k = get_K()
