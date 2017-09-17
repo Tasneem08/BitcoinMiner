@@ -9,7 +9,9 @@ defmodule Bitcoinminer do
       start_link()
       Registry.register(Registry.BitcoinSpecs, "kzeroes", String.to_atom(Integer.to_string(k)))
       IO.inspect(Registry.lookup(Registry.BitcoinSpecs, "kzeroes"))
-      k |> getKZeroes() |> mainMethod()
+      str = k |> getKZeroes() |> spawnXminingThreadsServer()
+      #mainMethod()
+      
    rescue
       ArgumentError -> start_distributed(List.first(args))
    end
@@ -39,7 +41,7 @@ defmodule Bitcoinminer do
     max_size = 100
     total_workers = tuple_size(List.to_tuple(Node.list())) + 1
     #workUnit = round(max_size/total_workers)
-    workUnit = 30
+    workUnit = 10
     loop(List.to_tuple(Node.list()), total_workers - 2 , 0, workUnit, %{})
     end
 
@@ -64,28 +66,30 @@ defmodule Bitcoinminer do
     end
 
   # Returns a string with k zeroes
-  defp getKZeroes(k) do
+  def getKZeroes(k) do
    String.duplicate("0", k)
   end
 
-  defp mainMethod(k) do
+  def mainMethod(k) do
+  #IO.puts("In here..")
   getRandomStr()|>validateHash(k)
   mainMethod(k)
   end
 
   
-  defp getRandomStr do
+  def getRandomStr do
   len =40
   salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
   "mmathkar" <> salt
   end
 
   
-  defp validateHash(inputStr,comparator) do
+  def validateHash(inputStr,comparator) do
   hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
   bool = String.starts_with?(hashVal, comparator)
   if bool == true do
-    GenServer.cast({:TM, String.to_atom("muginu@"<>findIP())}, {:print_coin, inputStr, hashVal})
+     printBitcoins(inputStr, hashVal)
+  #  GenServer.cast({:TM, String.to_atom("muginu@"<>findIP())}, {:print_coin, inputStr, hashVal})
   end
   end
 
@@ -150,31 +154,32 @@ defmodule Bitcoinminer do
 
     unless Node.alive?() do
       local_node_name = String.to_atom("mmathkar"<>(:erlang.monotonic_time() |> :erlang.phash2(256) |> Integer.to_string(16))<>"@"<>findIP())
-      {:ok, _} = Node.start(local_node_name)
+      {:ok, _} = IO.inspect(Node.start(local_node_name))
     end
    
     Node.set_cookie(String.to_atom("monster"))
-    result = Node.connect(String.to_atom("muginu@"<>ipAddr))
+    result = IO.inspect(Node.connect(String.to_atom("muginu@"<>ipAddr)))
     if result == true do
       {{max_val, min_val}, k} = IO.inspect(get_K())
       #{max_val, min_val} = Map.get(map, Node.self())
+      #spawnXminingThreadsClient(String.duplicate("0", k), min_val, max_val)
       clientMainMethod(String.duplicate("0", k), min_val, max_val)
     end
   end
 
-  defp clientMainMethod(k, max_val, min_val) do
+  def clientMainMethod(k, max_val, min_val) do
   getRandomStrClient(max_val, min_val)|>validateHashClient(k)
   clientMainMethod(k, max_val, min_val)
   end
 
-  defp getRandomStrClient(max_val, min_val) do
+  def getRandomStrClient(max_val, min_val) do
   #IO.puts("Found the range as #{max_val} - #{min_val}")
   len =Enum.random(min_val..max_val)
   salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
   "mmathkar" <> salt
   end
 
-  defp validateHashClient(inputStr,comparator) do
+  def validateHashClient(inputStr,comparator) do
   hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
   bool = String.starts_with?(hashVal, comparator)
   if bool == true do
@@ -182,6 +187,17 @@ defmodule Bitcoinminer do
   end
   end
 
+def spawnXminingThreadsServer(k) do
+    #IO.puts(count)
+    spawn(Bitcoinminer,:mainMethod, [k])
+    spawnXminingThreadsServer(k)
+end
+
+def spawnXminingThreadsClient(k, max_val, min_val) do
+    #IO.puts(count)
+    spawn(Bitcoinminer,:clientMainMethod, [k, max_val, min_val])
+    spawnXminingThreadsClient(k, max_val, min_val)
+end
 
   # defp generate_name(appname) do
   #   machine = Application.get_env(appname, :machine, "localhost") #Returns the value for :machine in app’s environment
