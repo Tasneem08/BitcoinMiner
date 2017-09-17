@@ -35,9 +35,30 @@ defmodule Bitcoinminer do
     # Try to maintain a map?
     # Store a range of size assigned to each worker.
   def loadBalancer do
+    # Number of nodes connected (not counting self ) =   tuple_size(List.to_tuple(Node.list()))
+    max_size = 100
+    total_workers = tuple_size(List.to_tuple(Node.list())) + 1
+    
+    # for(i=1;i<total_workers; i++)
+    # {
+    #     worker_min = worker_max + 1
+    #     worker_max = (max_size/total_workers) * i
+    #     send to worker pid -> {worker_min, worker_max}
+    # }
+    workUnit = (max_size/total_workers)
+    loop(List.to_tuple(Node.list()), total_workers - 2 , 0, workUnit)
+    end
 
-  
- 
+
+    def loop(tuple, i, worker_max, workUnit) do
+    if i>= 0 do
+        worker_min = worker_max + 1
+        worker_max = worker_max + workUnit
+
+        IO.puts("For #{elem(tuple,i)}  Min Size = #{worker_min}     Max Size = #{worker_max}")
+        loop(tuple, i-1, worker_max, workUnit)
+    end
+    end
 
   # Returns a string with k zeroes
   defp getKZeroes(k) do
@@ -93,7 +114,7 @@ defmodule Bitcoinminer do
     end
 
     def get_K do
-        # CALL LOAD BALANCER HERE
+        
         [serverIP] = Registry.keys(Registry.ServerInfo, self())
         IO.inspect(GenServer.call({:TM, String.to_atom("muginu@"<>serverIP)}, :get_K))
         
@@ -109,6 +130,8 @@ defmodule Bitcoinminer do
     end
 
     def handle_call(:get_K, _from, messages) do
+      # CALL LOAD BALANCER HERE
+      loadBalancer()
       [{_, k}] = Registry.lookup(Registry.BitcoinSpecs, "kzeroes")
       {:reply, String.to_integer(Atom.to_string(k)), messages}
   end
@@ -132,7 +155,7 @@ defmodule Bitcoinminer do
    Registry.register(Registry.ServerInfo, ipAddr, :serverIP)
 
     unless Node.alive?() do
-      local_node_name = String.to_atom("mmathkar"<>(:crypto.strong_rand_bytes(5) |> Base.encode64 |> binary_part(0, 5)))
+      local_node_name = String.to_atom("mmathkar"<>(:erlang.monotonic_time() |> :erlang.phash2(256) |> Integer.to_string(16)))
       {:ok, _} = Node.start(local_node_name)
     end
    
@@ -144,14 +167,6 @@ defmodule Bitcoinminer do
       clientMainMethod(String.duplicate("0", k))
     end
   end
-
-  # defp generate_name(appname) do
-  #   machine = Application.get_env(appname, :machine, "localhost") #Returns the value for :machine in app’s environment
-  #   hex = :erlang.monotonic_time() |>
-  #     :erlang.phash2(256) |>
-  #     Integer.to_string(16)
-  #   String.to_atom("#{appname}-#{hex}@#{machine}")
-  # end
 
   defp clientMainMethod(k) do
   getRandomStrClient()|>validateHashClient(k)
@@ -173,3 +188,12 @@ defmodule Bitcoinminer do
   end
 
   end
+
+
+  # defp generate_name(appname) do
+  #   machine = Application.get_env(appname, :machine, "localhost") #Returns the value for :machine in app’s environment
+  #   hex = :erlang.monotonic_time() |>
+  #     :erlang.phash2(256) |>
+  #     Integer.to_string(16)
+  #   String.to_atom("#{appname}-#{hex}@#{machine}")
+  # end
