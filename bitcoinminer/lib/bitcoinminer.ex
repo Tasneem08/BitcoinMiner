@@ -38,19 +38,29 @@ defmodule Bitcoinminer do
     # Number of nodes connected (not counting self ) =   tuple_size(List.to_tuple(Node.list()))
     max_size = 100
     total_workers = tuple_size(List.to_tuple(Node.list())) + 1
-    workUnit = (max_size/total_workers)
-    loop(List.to_tuple(Node.list()), total_workers - 2 , 0, workUnit)
+    #workUnit = round(max_size/total_workers)
+    workUnit = 30
+    loop(List.to_tuple(Node.list()), total_workers - 2 , 0, workUnit, %{})
     end
 
-    def loop(tuple, i, worker_max, workUnit) do
-    if i>= 0 do
-        worker_min = worker_max + 1
-        worker_max = worker_max + workUnit
-        IO.puts("For #{elem(tuple,i)}  Min Size = #{worker_min}     Max Size = #{worker_max}")
-        #send elem(tuple,i), {[],[] }
-        #sendToClient(elem(tuple,i), worker_min, worker_max)
-        loop(tuple, i-1, worker_max, workUnit)
-    end
+    def loop(tuple, i, worker_max, workUnit, map) do
+    # if(i>=0) do
+    #     worker_min = worker_max + 1
+    #     worker_max = worker_max + workUnit
+    #     #IO.puts("For #{elem(tuple,i)}  Min Size = #{worker_min}     Max Size = #{worker_max}")
+    #     map = Map.put(map, elem(tuple,i), {worker_max, worker_min})
+    #     loop(tuple, i-1, worker_max, workUnit, map)
+    #     #send elem(tuple,i), {[],[] }
+    #     #sendToClient(elem(tuple,i), worker_min, worker_max)
+    #     end
+
+    # for x <- 0..i, do: (worker_min = (workUnit*x) +1
+    #     worker_max = workUnit*(x+1)
+    #     #IO.puts("For #{elem(tuple,i)}  Min Size = #{worker_min}     Max Size = #{worker_max}")
+    #     map = Map.put(map, elem(tuple,x), {worker_max, worker_min}))
+    # end
+
+    {(workUnit*i)+1, workUnit*(i+1)}
     end
 
   # Returns a string with k zeroes
@@ -115,9 +125,9 @@ defmodule Bitcoinminer do
 
     def handle_call(:get_K, _from, map) do
       # CALL LOAD BALANCER HERE
-      loadBalancer()
+      returnObj = loadBalancer()
       [{_, k}] = Registry.lookup(Registry.BitcoinSpecs, "kzeroes")
-      {:reply, String.to_integer(Atom.to_string(k)), map}
+      {:reply, {returnObj, String.to_integer(Atom.to_string(k))}, map}
   end
 
     def handle_cast({:print_coin, inputStr, hashValue}, map) do
@@ -126,7 +136,6 @@ defmodule Bitcoinminer do
         printBitcoins(inputStr, hashValue)
         {:noreply, Map.put(map, inputStr, hashValue)}
       _ ->
-        IO.puts("FOUND CLASH.")
         {:noreply, map}
     end
     end
@@ -147,18 +156,20 @@ defmodule Bitcoinminer do
     Node.set_cookie(String.to_atom("monster"))
     result = Node.connect(String.to_atom("muginu@"<>ipAddr))
     if result == true do
-      k = get_K()
-      clientMainMethod(String.duplicate("0", k))
+      {{max_val, min_val}, k} = IO.inspect(get_K())
+      #{max_val, min_val} = Map.get(map, Node.self())
+      clientMainMethod(String.duplicate("0", k), min_val, max_val)
     end
   end
 
-  defp clientMainMethod(k) do
-  getRandomStrClient()|>validateHashClient(k)
-  clientMainMethod(k)
+  defp clientMainMethod(k, max_val, min_val) do
+  getRandomStrClient(max_val, min_val)|>validateHashClient(k)
+  clientMainMethod(k, max_val, min_val)
   end
 
-  defp getRandomStrClient do
-  len =5
+  defp getRandomStrClient(max_val, min_val) do
+  #IO.puts("Found the range as #{max_val} - #{min_val}")
+  len =Enum.random(min_val..max_val)
   salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
   "mmathkar" <> salt
   end
