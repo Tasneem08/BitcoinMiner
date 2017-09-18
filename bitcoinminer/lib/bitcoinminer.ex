@@ -6,41 +6,42 @@ defmodule BitcoinServer do
     GenServer.start_link(BitcoinServer,k, name: :TM)
   end
 
+  # Maintains a state with the k - input parameter and a Map to keep track of generated bitcoins.
   def init(k) do
-      {:ok, k}
-      #{:ok, Map.new}
+      {:ok, {k, Map.new}}
   end
 
-  def handle_call(:get_K, _from, k) do
-    # CALL LOAD BALANCER HERE
+  # Send back a range of length for random strings the client is supposed to hash and check.
+  def handle_call(:get_K, _from, state) do
+    {k, _} = state
     returnObj = BitcoinLogic.loadBalancer()
-    {:reply, {returnObj, k}, k}
+    {:reply, {returnObj, k}, state}
   end
 
-  def handle_call(:get_blah, _from, k) do
-    {:reply, k, k}
+  # Sends back a random string of the requested size.
+  def handle_call({:get_string, size}, _from, state) do
+    salt = :crypto.strong_rand_bytes(size) |> Base.encode64 |> binary_part(0, size)
+    {:reply, salt, state}
   end
 
-  def handle_call(:get_string, _from, k) do
-    len =40
-    salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
-    {:reply, salt, k}
-  end
-
-  def handle_cast({:print_coin, inputStr, hashValue}, k) do
-    Bitcoinminer.printBitcoins(inputStr, hashValue)
-    #     case Map.get(map, inputStr) do
-    #   nil ->
-    #     Bitcoinminer.printBitcoins(inputStr, hashValue)
-    #     {:noreply, Map.put(map, inputStr, hashValue)}
-    #   _ ->
-       {:noreply, k}
-    # end
+  # Prints the bitcoins and their hash sent by the workers after filtering the duplicates.
+  def handle_cast({:print_coin, inputStr, hashValue}, state) do
+  {k, map} = state
+      case Map.get(map, inputStr) do
+      nil ->
+        Bitcoinminer.printBitcoins(inputStr, hashValue)
+        {:noreply, {k, Map.put(map, inputStr, hashValue)}}
+      _ ->
+      IO.puts "Found clash"
+       {:noreply, state}
+    end
   end
 
 end
 
+# The main module
 defmodule Bitcoinminer do
+
   # Entry point to the code. 
   def main(args) do
     try do
@@ -53,20 +54,26 @@ defmodule Bitcoinminer do
 
   # Returns the IP address of the machine the code is being run on.
   def findIP do
-    {ops_sys, _ } = :os.type
+    {ops_sys, extra } = :os.type
     ip = 
     case ops_sys do
-      :unix -> {:ok, [addr: ip]} = :inet.ifget('en0', [:addr])
-               to_string(:inet.ntoa(ip))
+      :unix -> 
+            if extra == :linux do
+              {:ok, [addr: ip]} = :inet.ifget('ens3', [:addr])
+              to_string(:inet.ntoa(ip))
+            else
+              {:ok, [addr: ip]} = :inet.ifget('en0', [:addr])
+              to_string(:inet.ntoa(ip))
+            end
       :win32 -> {:ok, [ip, _]} = :inet.getiflist
                to_string(ip)
     end
   (ip)
   end
 
+  # Starts a server node, initiates the GenServer and starts the mining on the server side.
   def start_link(k) do
-   IO.puts("In Start Link")
-    serverIP = findIP()
+    serverIP = IO.inspect findIP()
     local_node_name = String.to_atom("muginu@"<>serverIP)
     IO.inspect(Node.start(local_node_name))
     Node.set_cookie(String.to_atom("monster"))
@@ -74,18 +81,14 @@ defmodule Bitcoinminer do
     String.duplicate("0", k) |> BitcoinLogic.spawnXminingThreadsServer(serverIP) 
   end
 
+  # Calls Genserver 
   def print_coin(inputStr, hashValue, ipAddr) do
-    #[serverIP] = Registry.keys(Registry.ServerInfo, self())
     GenServer.cast({:TM, String.to_atom("muginu@"<>ipAddr)}, {:print_coin, inputStr, hashValue})
   end
 
   def get_K(ipAddr) do
-    #[serverIP] = Registry.keys(Registry.ServerInfo, self())
     GenServer.call({:TM, String.to_atom("muginu@"<>ipAddr)}, :get_K, 10000)
   end
-
-    #server side/callback func
-  ### Client
 
   # Prints found Bitcoins and their hash to the console.
   def printBitcoins(inputStr, hashVal) do
@@ -99,24 +102,22 @@ defmodule Bitcoinminer do
     result = IO.inspect(Node.connect(String.to_atom("muginu@"<>ipAddr)))
     if result == true do
       {{max_val, min_val}, k} = IO.inspect(get_K(ipAddr))
-      #spawnXminingThreadsClient(String.duplicate("0", k), min_val, max_val)
       clientMainMethod(String.duplicate("0", k), min_val, max_val, ipAddr)
     end
   end
 
-  def clientMainMethod(k, max_val, min_val, ipAddr) do
-    getRandomStrClient(max_val, min_val)|>validateHashClient(k, ipAddr)
-    clientMainMethod(k, max_val, min_val, ipAddr)
-  end
-
   def getRandomStrClient(max_val, min_val) do
-    #IO.puts("Found the range as #{max_val} - #{min_val}")
     len =Enum.random(min_val..max_val)
     salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
     "mmathkar" <> salt
   end
 
-  def validateHashClient(inputStr,comparator, ipAddr) do
+  def clientMainMethod(k, max_val, min_val, ipAddr) do
+    getRandomStrClient(max_val,min_val) |>validateHashClient(k, ipAddr)
+    clientMainMethod(k, max_val, min_val, ipAddr)
+  end
+
+  def validateHashClient(inputStr, comparator, ipAddr) do
     hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
     bool = String.starts_with?(hashVal, comparator)
     if bool == true do
@@ -134,33 +135,34 @@ defmodule BitcoinLogic do
   # end
 
   def spawnXminingThreadsServer(k, serverIP) do
-     spawn(BitcoinLogic,:validateHash, [k, serverIP])
+     spawn(BitcoinLogic,:mainMethod, [k, 40, 1, serverIP])
      spawnXminingThreadsServer(k, serverIP)
   end
 
+  def mainMethod(k, max_val, min_val, ipAddr) do
+    Enum.random(min_val..max_val) |>validateHash(k, ipAddr)
+    mainMethod(k, max_val, min_val, ipAddr)
+  end
 
   # Load Balancer
   def loadBalancer do
     # Number of nodes connected (not counting self ) =   tuple_size(List.to_tuple(Node.list()))
-    max_size = 100
     total_workers = tuple_size(List.to_tuple(Node.list())) + 1
-    #workUnit = round(max_size/total_workers)
     workUnit = 10
-    loop(List.to_tuple(Node.list()), total_workers - 2 , 0, workUnit, %{})
+    loop(total_workers - 2 , workUnit)
   end
 
-  def loop(tuple, i, worker_max, workUnit, map) do
-    {(workUnit*i)+1, workUnit*(i+1)}
+  def loop(i, workUnit) do
+    {(workUnit*i + 40)+1, workUnit*(i+1) + 40}
   end
 
-  def validateHash(comparator, serverIP) do
-    inputStr = "mmathkar" <> GenServer.call({:TM, String.to_atom("muginu@"<>Bitcoinminer.findIP())}, :get_string)
+  def validateHash(size, comparator, serverIP) do
+    inputStr = "mmathkar" <> GenServer.call({:TM, String.to_atom("muginu@"<>Bitcoinminer.findIP)}, {:get_string, size})
     hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
     bool = String.starts_with?(hashVal, comparator)
     if bool == true do
       GenServer.cast({:TM, String.to_atom("muginu@"<>Bitcoinminer.findIP)}, {:print_coin, inputStr, hashVal})
     end
-    validateHash(comparator, serverIP)
   end
 
 end
