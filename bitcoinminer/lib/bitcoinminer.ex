@@ -14,11 +14,17 @@ defmodule BitcoinServer do
   def handle_call(:get_K, _from, k) do
     # CALL LOAD BALANCER HERE
     returnObj = BitcoinLogic.loadBalancer()
-    {:reply, {returnObj, String.to_integer(k)}, k}
+    {:reply, {returnObj, k}, k}
   end
 
   def handle_call(:get_blah, _from, k) do
     {:reply, k, k}
+  end
+
+  def handle_call(:get_string, _from, k) do
+    len =40
+    salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
+    {:reply, salt, k}
   end
 
   def handle_cast({:print_coin, inputStr, hashValue}, k) do
@@ -28,7 +34,7 @@ defmodule BitcoinServer do
     #     Bitcoinminer.printBitcoins(inputStr, hashValue)
     #     {:noreply, Map.put(map, inputStr, hashValue)}
     #   _ ->
-    #     {:noreply, map}
+       {:noreply, k}
     # end
   end
 
@@ -74,7 +80,7 @@ defmodule Bitcoinminer do
 
   def get_K do
     #[serverIP] = Registry.keys(Registry.ServerInfo, self())
-    GenServer.call({:TM, String.to_atom("muginu@192.168.0.103")}, :get_K)
+    GenServer.call({:TM, String.to_atom("muginu@192.168.0.103")}, :get_K, 10000)
   end
 
     #server side/callback func
@@ -87,10 +93,9 @@ defmodule Bitcoinminer do
 
   def start_distributed(ipAddr) do
     local_node_name = String.to_atom("mmathkar"<>(:erlang.monotonic_time() |> :erlang.phash2(256) |> Integer.to_string(16))<>"@"<>findIP())
-    #local_node_name = String.to_atom("tinu@"<>findIP())
     IO.inspect(Node.start(local_node_name))
     Node.set_cookie(String.to_atom("monster"))
-    result = IO.inspect(Node.connect(String.to_atom("muginu@"<>ipAddr)))
+    result = IO.inspect(Node.connect(String.to_atom("muginu@192.168.0.103")))
     if result == true do
       {{max_val, min_val}, k} = IO.inspect(get_K())
       #spawnXminingThreadsClient(String.duplicate("0", k), min_val, max_val)
@@ -117,12 +122,11 @@ defmodule Bitcoinminer do
       print_coin(inputStr,hashVal)
     end
   end
-end;
+end
 
 defmodule BitcoinLogic do
 
   def spawnXminingThreadsServer(k) do
-     #random_str = GenServer.call({:TM,String.to_atom("muginu@192.168.0.103")}, :get_blah)
      spawn(BitcoinLogic,:validateHash, [k])
      spawnXminingThreadsServer(k)
     end
@@ -168,11 +172,11 @@ defmodule BitcoinLogic do
   end
 
   def validateHash(comparator) do
-    inputStr = getRandomStr()
+    inputStr = "mmathkar" <> GenServer.call({:TM, String.to_atom("muginu@192.168.0.103")}, :get_string)
     hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
     bool = String.starts_with?(hashVal, comparator)
     if bool == true do
-      GenServer.cast({:TM, String.to_atom("muginu@"<>Bitcoinminer.findIP())}, {:print_coin, inputStr, hashVal})
+      GenServer.cast({:TM, String.to_atom("muginu@192.168.0.103")}, {:print_coin, inputStr, hashVal})
     end
     validateHash(comparator)
   end
