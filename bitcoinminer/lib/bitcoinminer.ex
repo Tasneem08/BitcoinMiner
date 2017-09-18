@@ -66,11 +66,12 @@ defmodule Bitcoinminer do
 
   def start_link(k) do
    IO.puts("In Start Link")
-    local_node_name = String.to_atom("muginu@"<>findIP())
+    serverIP = findIP()
+    local_node_name = String.to_atom("muginu@"<>serverIP)
     IO.inspect(Node.start(local_node_name))
     Node.set_cookie(String.to_atom("monster"))
     BitcoinServer.start_link(k)
-    String.duplicate("0", k) |> BitcoinLogic.spawnXminingThreadsServer() 
+    String.duplicate("0", k) |> BitcoinLogic.spawnXminingThreadsServer(serverIP) 
   end
 
   def print_coin(inputStr, hashValue) do
@@ -126,9 +127,9 @@ end
 
 defmodule BitcoinLogic do
 
-  def spawnXminingThreadsServer(k) do
-     spawn(BitcoinLogic,:validateHash, [k])
-     spawnXminingThreadsServer(k)
+  def spawnXminingThreadsServer(k, serverIP) do
+     spawn(BitcoinLogic,:validateHash, [k, serverIP])
+     spawnXminingThreadsServer(k, serverIP)
     end
 
   # Load Balancer
@@ -171,14 +172,14 @@ defmodule BitcoinLogic do
     "mmathkar" <> salt
   end
 
-  def validateHash(comparator) do
-    inputStr = "mmathkar" <> GenServer.call({:TM, String.to_atom("muginu@192.168.0.103")}, :get_string)
+  def validateHash(comparator, serverIP) do
+    inputStr = "mmathkar" <> GenServer.call({:TM, String.to_atom("muginu@"<>Bitcoinminer.findIP)}, :get_string)
     hashVal=:crypto.hash(:sha256,inputStr) |> Base.encode16(case: :lower)
     bool = String.starts_with?(hashVal, comparator)
     if bool == true do
-      GenServer.cast({:TM, String.to_atom("muginu@192.168.0.103")}, {:print_coin, inputStr, hashVal})
+      GenServer.cast({:TM, String.to_atom("muginu@"<>Bitcoinminer.findIP)}, {:print_coin, inputStr, hashVal})
     end
-    validateHash(comparator)
+    validateHash(comparator, serverIP)
   end
 
 end
