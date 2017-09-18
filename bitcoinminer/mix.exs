@@ -3,7 +3,7 @@ defmodule Bitcoinminer.Mixfile do
 
   def project do
     [
-      app: :bitcoinminer,
+      app: :project1,
       version: "0.1.0",
       elixir: "~> 1.5",
       start_permanent: Mix.env == :prod,

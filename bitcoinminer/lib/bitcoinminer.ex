@@ -12,7 +12,7 @@ defmodule BitcoinServer do
   end
 
   # Send back a range of length for random strings the client is supposed to hash and check.
-  def handle_call(:get_K, _from, state) do
+  def handle_call(:get_work, _from, state) do
     {k, _} = state
     returnObj = BitcoinLogic.loadBalancer()
     {:reply, {returnObj, k}, state}
@@ -81,13 +81,14 @@ defmodule Bitcoinminer do
     String.duplicate("0", k) |> BitcoinLogic.spawnXminingThreadsServer(serverIP) 
   end
 
-  # Calls Genserver 
+  # Calls Genserver to print found bitcoins
   def print_coin(inputStr, hashValue, ipAddr) do
     GenServer.cast({:TM, String.to_atom("muginu@"<>ipAddr)}, {:print_coin, inputStr, hashValue})
   end
 
-  def get_K(ipAddr) do
-    GenServer.call({:TM, String.to_atom("muginu@"<>ipAddr)}, :get_K, 10000)
+  # Calls Genserver to ask for work load
+  def get_work(ipAddr) do
+    GenServer.call({:TM, String.to_atom("muginu@"<>ipAddr)}, :get_work, 10000)
   end
 
   # Prints found Bitcoins and their hash to the console.
@@ -95,23 +96,26 @@ defmodule Bitcoinminer do
     IO.puts "#{inputStr}\t#{hashVal}"
   end
 
+ # Sets up the worker/ Client
   def start_distributed(ipAddr) do
     local_node_name = String.to_atom("mmathkar"<>(:erlang.monotonic_time() |> :erlang.phash2(256) |> Integer.to_string(16))<>"@"<>findIP())
     IO.inspect(Node.start(local_node_name))
     Node.set_cookie(String.to_atom("monster"))
     result = IO.inspect(Node.connect(String.to_atom("muginu@"<>ipAddr)))
     if result == true do
-      {{max_val, min_val}, k} = IO.inspect(get_K(ipAddr))
+      {{max_val, min_val}, k} = IO.inspect(get_work(ipAddr))
       clientMainMethod(String.duplicate("0", k), min_val, max_val, ipAddr)
     end
   end
 
+  # Generates a random string within the range provided
   def getRandomStrClient(max_val, min_val) do
     len =Enum.random(min_val..max_val)
     salt = :crypto.strong_rand_bytes(len) |> Base.encode64 |> binary_part(0, len)
     "mmathkar" <> salt
   end
 
+  # the recurrsive method that handles mining at client
   def clientMainMethod(k, max_val, min_val, ipAddr) do
     getRandomStrClient(max_val,min_val) |>validateHashClient(k, ipAddr)
     clientMainMethod(k, max_val, min_val, ipAddr)
